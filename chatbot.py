@@ -143,6 +143,35 @@ def search_music(song_name):
         youtube_url = f"https://www.youtube.com/results?search_query={encoded_song}"
         return f"🎵 Playing '{song_name}':\n\n🎧 Spotify: {spotify_url}\n🎬 YouTube: {youtube_url}"
 
+def search_person_info(person_name):
+    """Search for person information using multiple sources for better accuracy"""
+    try:
+        # First try Wikipedia with better error handling
+        try:
+            # Search for the person first to get the most relevant result
+            search_results = wikipedia.search(person_name, results=1)
+            if search_results:
+                info = wikipedia.summary(search_results[0], sentences=3)
+                return info
+            else:
+                return f"I couldn't find information about {person_name}. Try being more specific."
+        except wikipedia.exceptions.DisambiguationError as e:
+            # If disambiguation error, try the first option
+            if e.options:
+                try:
+                    info = wikipedia.summary(e.options[0], sentences=2)
+                    return info
+                except:
+                    options = ', '.join(e.options[:3])
+                    return f"Multiple results found. Did you mean: {options}?"
+            return f"Multiple results found for {person_name}. Please be more specific."
+        except wikipedia.exceptions.PageError:
+            return f"I couldn't find a Wikipedia page for {person_name}. Try another search term."
+        except Exception as e:
+            return f"Error retrieving information: {str(e)}"
+    except Exception as e:
+        return f"I couldn't fetch information right now. Try again later."
+
 def process_command(command):
     """Process a single command and return the response"""
     command = command.lower().strip()
@@ -183,16 +212,7 @@ def process_command(command):
         elif 'who is' in command or 'tell me about' in command:
             person = command.replace('who is', '').replace('tell me about', '').strip()
             if person:
-                try:
-                    info = wikipedia.summary(person, sentences=2)
-                    return info
-                except wikipedia.exceptions.DisambiguationError as e:
-                    options = ', '.join(e.options[:5])
-                    return f"Multiple results found. Did you mean: {options}?"
-                except wikipedia.exceptions.PageError:
-                    return f"I couldn't find information about {person}. Try being more specific."
-                except Exception as e:
-                    return f"Error retrieving information: {str(e)}"
+                return search_person_info(person)
             else:
                 return "Please specify who you want to know about"
         
