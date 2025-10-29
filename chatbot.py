@@ -8,6 +8,112 @@ import os
 import requests
 
 
+def get_weather(city):
+    """Get weather information for a city using Open-Meteo API (free, no key needed)"""
+    try:
+        # Get coordinates for the city
+        geo_url = "https://geocoding-api.open-meteo.com/v1/search"
+        geo_params = {"name": city, "count": 1, "language": "en", "format": "json"}
+        geo_response = requests.get(geo_url, params=geo_params, timeout=5)
+        geo_data = geo_response.json()
+        
+        if not geo_data.get("results"):
+            return f"I couldn't find weather data for {city}. Try another city."
+        
+        location = geo_data["results"][0]
+        latitude = location["latitude"]
+        longitude = location["longitude"]
+        
+        # Get weather data
+        weather_url = "https://api.open-meteo.com/v1/forecast"
+        weather_params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "current": "temperature_2m,weather_code,wind_speed_10m",
+            "temperature_unit": "fahrenheit"
+        }
+        weather_response = requests.get(weather_url, params=weather_params, timeout=5)
+        weather_data = weather_response.json()
+        
+        current = weather_data["current"]
+        temp = current["temperature_2m"]
+        wind = current["wind_speed_10m"]
+        
+        weather_codes = {
+            0: "Clear sky ☀️",
+            1: "Mainly clear 🌤️",
+            2: "Partly cloudy ⛅",
+            3: "Overcast ☁️",
+            45: "Foggy 🌫️",
+            48: "Foggy 🌫️",
+            51: "Light drizzle 🌧️",
+            61: "Slight rain 🌧️",
+            80: "Moderate rain 🌧️",
+            95: "Thunderstorm ⛈️"
+        }
+        
+        weather_desc = weather_codes.get(current["weather_code"], "Unknown")
+        
+        return f"🌍 Weather in {location['name']}, {location.get('country', '')}:\n\n🌡️ Temperature: {temp}°F\n💨 Wind Speed: {wind} km/h\n{weather_desc}"
+    
+    except Exception as e:
+        return f"I couldn't fetch weather data right now. Try again later."
+
+def get_random_quote():
+    """Get a random inspirational quote"""
+    quotes = [
+        "The only way to do great work is to love what you do. - Steve Jobs",
+        "Innovation distinguishes between a leader and a follower. - Steve Jobs",
+        "Life is what happens when you're busy making other plans. - John Lennon",
+        "The future belongs to those who believe in the beauty of their dreams. - Eleanor Roosevelt",
+        "It is during our darkest moments that we must focus to see the light. - Aristotle",
+        "The only impossible journey is the one you never begin. - Tony Robbins",
+        "Success is not final, failure is not fatal. - Winston Churchill",
+        "Believe you can and you're halfway there. - Theodore Roosevelt",
+        "The best time to plant a tree was 20 years ago. The second best time is now. - Chinese Proverb",
+        "Your time is limited, don't waste it living someone else's life. - Steve Jobs"
+    ]
+    return random.choice(quotes)
+
+def get_trivia():
+    """Get a random fun trivia fact"""
+    trivia_facts = [
+        "🧠 Did you know? Honey never spoils. Archaeologists have found 3,000-year-old honey in Egyptian tombs that was still edible!",
+        "🐙 Did you know? Octopuses have three hearts - two pump blood to the gills, one pumps it to the rest of the body.",
+        "🌍 Did you know? A day on Venus is longer than a year on Venus!",
+        "🦁 Did you know? A lion's roar can be heard from 5 miles away.",
+        "🧬 Did you know? Your body contains about 37.2 trillion cells.",
+        "🌳 Did you know? Trees can communicate with each other through an underground network called the 'Wood Wide Web'.",
+        "🐠 Did you know? Goldfish have a memory span of about 3 seconds.",
+        "⚡ Did you know? Lightning is about 5 times hotter than the surface of the sun.",
+        "🦋 Did you know? Butterflies taste with their feet.",
+        "🧊 Did you know? Antarctica is the largest desert in the world."
+    ]
+    return random.choice(trivia_facts)
+
+def calculate(expression):
+    """Simple calculator for basic math"""
+    try:
+        # Only allow safe operations
+        allowed_chars = set('0123456789+-*/.() ')
+        if not all(c in allowed_chars for c in expression):
+            return "I can only do basic math operations. Try something like '2 + 2' or '10 * 5'."
+        
+        result = eval(expression)
+        return f"🧮 {expression} = {result}"
+    except:
+        return "I couldn't calculate that. Try a simpler expression like '2 + 2'."
+
+def search_spotify(song_name):
+    """Generate a Spotify search link for the song"""
+    encoded_song = urllib.parse.quote(song_name)
+    return f"🎵 Search on Spotify: https://open.spotify.com/search/{encoded_song}"
+
+def search_youtube(song_name):
+    """Generate a YouTube search link for the song"""
+    encoded_song = urllib.parse.quote(song_name)
+    return f"🎬 Search on YouTube: https://www.youtube.com/results?search_query={encoded_song}"
+
 def search_music(song_name):
     """Generate direct playable links for the song"""
     try:
@@ -48,7 +154,26 @@ def process_command(command):
         command = command.replace('alexa ', '', 1).strip()
     
     try:
-        if 'play' in command:
+        if 'weather' in command:
+            city = command.replace('weather', '').replace('in', '').replace('for', '').strip()
+            if city:
+                return get_weather(city)
+            else:
+                return "Please specify a city. Try 'weather in New York' or 'weather for London'."
+        
+        elif 'quote' in command or 'inspire' in command or 'motivation' in command:
+            return get_random_quote()
+        
+        elif 'trivia' in command or 'fun fact' in command or 'did you know' in command:
+            return get_trivia()
+        
+        elif any(op in command for op in ['+', '-', '*', '/', '=']):
+            # Simple calculator
+            expression = command.replace('calculate', '').replace('what is', '').strip()
+            if expression:
+                return calculate(expression)
+        
+        elif 'play' in command:
             song = command.replace('play', '').strip()
             if song:
                 return search_music(song)
@@ -103,11 +228,15 @@ def process_command(command):
             return random.choice(responses)
         
         elif 'your name' in command or 'who are you' in command:
-            return "I'm Iris, your personal AI assistant. I'm here to help you with information, music, jokes, and more!"
+            return "I'm Iris, your personal AI assistant. I'm here to help you with information, music, jokes, weather, and more!"
         
         elif 'help' in command or 'what can you do' in command:
             return """I can help you with:
 - Play music: 'play [song name]'
+- Get weather: 'weather in [city]'
+- Get quotes: 'give me a quote' or 'inspire me'
+- Fun facts: 'tell me a trivia' or 'fun fact'
+- Calculator: 'what is 2 + 2' or '10 * 5'
 - Get information: 'who is [person]' or 'tell me about [topic]'
 - Tell jokes: 'tell me a joke'
 - Check time: 'what time is it'
