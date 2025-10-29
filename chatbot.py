@@ -4,16 +4,75 @@ import pyjokes
 from datetime import datetime
 import random
 import urllib.parse
+import os
+import requests
 
-def search_spotify(song_name):
-    """Generate a Spotify search link for the song"""
-    encoded_song = urllib.parse.quote(song_name)
-    return f"🎵 Search on Spotify: https://open.spotify.com/search/{encoded_song}"
-
-def search_youtube(song_name):
-    """Generate a YouTube search link for the song"""
-    encoded_song = urllib.parse.quote(song_name)
-    return f"🎬 Search on YouTube: https://www.youtube.com/results?search_query={encoded_song}"
+def search_music(song_name):
+    """Search for a song using Last.fm API and return formatted results"""
+    try:
+        # Last.fm API endpoint (free, no auth required for basic search)
+        url = "http://ws.audioscrobbler.com/2.0/"
+        params = {
+            "method": "track.search",
+            "track": song_name,
+            "api_key": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",  # Public Last.fm API key
+            "format": "json",
+            "limit": 3
+        }
+        
+        response = requests.get(url, params=params, timeout=5)
+        data = response.json()
+        
+        if "results" in data and "trackmatches" in data["results"]:
+            tracks = data["results"]["trackmatches"]["track"]
+            if not tracks:
+                return f"No songs found for '{song_name}'. Try a different search."
+            
+            # Format results
+            result = f"🎵 Found songs for '{song_name}':\n\n"
+            
+            if isinstance(tracks, list):
+                for i, track in enumerate(tracks[:3], 1):
+                    artist = track.get("artist", "Unknown Artist")
+                    name = track.get("name", "Unknown")
+                    listeners = track.get("listeners", "0")
+                    url_link = track.get("url", "")
+                    
+                    result += f"{i}. **{name}** by {artist}\n"
+                    result += f"   Listeners: {listeners}\n"
+                    if url_link:
+                        result += f"   Link: {url_link}\n"
+                    result += "\n"
+            else:
+                track = tracks
+                artist = track.get("artist", "Unknown Artist")
+                name = track.get("name", "Unknown")
+                listeners = track.get("listeners", "0")
+                url_link = track.get("url", "")
+                
+                result += f"**{name}** by {artist}\n"
+                result += f"Listeners: {listeners}\n"
+                if url_link:
+                    result += f"Link: {url_link}\n"
+            
+            # Add quick links
+            result += "\n🔗 Quick Links:\n"
+            encoded_song = urllib.parse.quote(song_name)
+            result += f"• Spotify: https://open.spotify.com/search/{encoded_song}\n"
+            result += f"• YouTube: https://www.youtube.com/results?search_query={encoded_song}"
+            
+            return result
+        else:
+            return f"No songs found for '{song_name}'. Try a different search."
+    
+    except requests.exceptions.Timeout:
+        # Fallback to simple links if API times out
+        encoded_song = urllib.parse.quote(song_name)
+        return f"🎵 Search for '{song_name}':\n\n• Spotify: https://open.spotify.com/search/{encoded_song}\n• YouTube: https://www.youtube.com/results?search_query={encoded_song}"
+    except Exception as e:
+        # Fallback to simple links if API fails
+        encoded_song = urllib.parse.quote(song_name)
+        return f"🎵 Search for '{song_name}':\n\n• Spotify: https://open.spotify.com/search/{encoded_song}\n• YouTube: https://www.youtube.com/results?search_query={encoded_song}"
 
 def process_command(command):
     """Process a single command and return the response"""
@@ -29,9 +88,7 @@ def process_command(command):
         if 'play' in command:
             song = command.replace('play', '').strip()
             if song:
-                spotify_link = search_spotify(song)
-                youtube_link = search_youtube(song)
-                return f"Here are links to play '{song}':\n\n{spotify_link}\n{youtube_link}"
+                return search_music(song)
             else:
                 return "Please specify a song to play"
         
